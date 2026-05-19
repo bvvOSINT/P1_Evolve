@@ -1,0 +1,100 @@
+import { useState, useCallback } from 'react';
+import Header from './components/Header';
+import AnalyzerPanel from './components/AnalyzerPanel';
+import ResultsPanel from './components/ResultsPanel';
+import JustificationPanel from './components/JustificationPanel';
+import { AnalysisResult } from './types';
+
+export default function App() {
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleAnalysis = useCallback(async (url: string, _screenshot?: File) => {
+    setIsAnalyzing(true);
+    setResult(null);
+
+    try {
+     
+      const response = await fetch('http://localhost:8000/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: url }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error en la respuesta del servidor de análisis');
+      }
+
+      const data = await response.json();
+      const aiText = data.analysis;
+
+      
+      const isMalicious = aiText.includes('Phishing Malicioso');
+      const isSuspicious = aiText.includes('Sospechoso');
+      
+      let riskLevel: 'low' | 'medium' | 'high' = 'low';
+      if (isMalicious) riskLevel = 'high';
+      else if (isSuspicious) riskLevel = 'medium';
+
+      
+      const scoreMatch = aiText.match(/NIVEL DE RIESGO:\s*(\d+)/i);
+      const riskScore = scoreMatch ? parseInt(scoreMatch[1], 10) : (isMalicious ? 90 : isSuspicious ? 45 : 10);
+
+      // Limpiamos y formateamos el texto completo para que JustificationPanel lo pinte
+      const formattedFindings = [
+        {
+          id: 'ai-1',
+          category: 'Análisis de Inteligencia Artificial',
+          severity: riskLevel === 'high' ? 'critical' : riskLevel === 'medium' ? 'high' : 'low',
+          title: `Veredicto: ${riskLevel.toUpperCase()}`,
+          description: aiText, // Le inyectamos todo el desglose técnico que escribió Gemini
+          indicators: ['Procesado en tiempo real', 'Validación heurística LLM'],
+        }
+      ];
+
+      setResult({
+        riskScore,
+        riskLevel,
+        url,
+        timestamp: new Date().toISOString(),
+        domain: extractDomain(url),
+        // @ts-ignore - Adaptamos dinámicamente la estructura para heredar el diseño de Bolt
+        findings: formattedFindings,
+      });
+
+    } catch (error) {
+      console.error("Error analizando con la IA:", error);
+      alert("No se pudo conectar con el servidor de análisis de IA. Asegúrate de tener corriendo el backend.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-[#0a0e1a] text-slate-200 font-mono">
+      <Header />
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-1 space-y-6">
+            <AnalyzerPanel onAnalyze={handleAnalysis} isAnalyzing={isAnalyzing} />
+            {result && <ResultsPanel result={result} />}
+          </div>
+          <div className="xl:col-span-2">
+            <JustificationPanel result={result} isAnalyzing={isAnalyzing} />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function extractDomain(url: string): string {
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.hostname;
+  } catch {
+    return url;
+  }
+}
