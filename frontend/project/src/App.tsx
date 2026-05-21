@@ -15,7 +15,7 @@ export default function App() {
 
     try {
      
-      const response = await fetch('http://localhost:8000/analyze', {
+      const response = await fetch('https://p1-evolve.onrender.com/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
