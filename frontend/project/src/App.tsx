@@ -5,6 +5,16 @@ import ResultsPanel from './components/ResultsPanel';
 import JustificationPanel from './components/JustificationPanel';
 import { AnalysisResult } from './types';
 
+
+function extractDomain(url: string): string {
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.hostname;
+  } catch {
+    return url;
+  }
+}
+
 export default function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -14,7 +24,6 @@ export default function App() {
     setResult(null);
 
     try {
-     
       const response = await fetch('https://p1-evolve.onrender.com/analyze', {
         method: 'POST',
         headers: {
@@ -28,28 +37,27 @@ export default function App() {
       }
 
       const data = await response.json();
-      const aiText = data.analysis;
+      const aiText = data.analysis || "";
 
       
-      const isMalicious = aiText.includes('Phishing Malicioso');
-      const isSuspicious = aiText.includes('Sospechoso');
+      const aiTextLower = aiText.toLowerCase();
+      const isMalicious = aiTextLower.includes('phishing') || aiTextLower.includes('malicioso');
+      const isSuspicious = aiTextLower.includes('sospechoso') || aiTextLower.includes('advertencia');
       
       let riskLevel: 'low' | 'medium' | 'high' = 'low';
       if (isMalicious) riskLevel = 'high';
       else if (isSuspicious) riskLevel = 'medium';
 
-      
       const scoreMatch = aiText.match(/NIVEL DE RIESGO:\s*(\d+)/i);
-      const riskScore = scoreMatch ? parseInt(scoreMatch[1], 10) : (isMalicious ? 90 : isSuspicious ? 45 : 10);
+      const riskScore = scoreMatch ? parseInt(scoreMatch[1], 10) : (riskLevel === 'high' ? 90 : riskLevel === 'medium' ? 45 : 10);
 
-      // Limpiamos y formateamos el texto completo para que JustificationPanel lo pinte
       const formattedFindings = [
         {
           id: 'ai-1',
           category: 'Análisis de Inteligencia Artificial',
           severity: riskLevel === 'high' ? 'critical' : riskLevel === 'medium' ? 'high' : 'low',
           title: `Veredicto: ${riskLevel.toUpperCase()}`,
-          description: aiText, // Le inyectamos todo el desglose técnico que escribió Gemini
+          description: aiText,
           indicators: ['Procesado en tiempo real', 'Validación heurística LLM'],
         }
       ];
@@ -60,7 +68,7 @@ export default function App() {
         url,
         timestamp: new Date().toISOString(),
         domain: extractDomain(url),
-        // @ts-ignore - Adaptamos dinámicamente la estructura para heredar el diseño de Bolt
+        // @ts-ignore
         findings: formattedFindings,
       });
 
@@ -88,13 +96,4 @@ export default function App() {
       </main>
     </div>
   );
-}
-
-function extractDomain(url: string): string {
-  try {
-    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
-    return u.hostname;
-  } catch {
-    return url;
-  }
-}
+} 
