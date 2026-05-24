@@ -24,7 +24,7 @@ export default function App() {
     setResult(null);
 
     try {
-      const response = await fetch('https://p1-evolve.onrender.com/analyze', {
+      const response = await fetch('https://p1-evolve-1.onrender.com/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
