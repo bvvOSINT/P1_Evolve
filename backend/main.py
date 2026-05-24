@@ -6,7 +6,7 @@ import os
 
 app = FastAPI()
 
-# Configuración de CORS para conectar con tu Dashboard
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,9 +15,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inicializamos el cliente moderno de Google con tu API Key activa
-API_KEY = "AIzaSyAH66-Sxw5smQuGVb2cJUKdFr67EFXS0fs".strip()
-client = genai.Client(api_key=API_KEY)
+
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 class AnalysisRequest(BaseModel):
     content: str
@@ -40,9 +39,9 @@ async def analyze_content(request: AnalysisRequest):
         - [Razón técnica 3]
         """
         
-        # 🚀 Usamos el modelo moderno oficial de Google
+        
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=prompt,
         )
         
